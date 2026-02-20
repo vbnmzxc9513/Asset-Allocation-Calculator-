@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>資產追蹤器</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="資產追蹤">
+    <link rel="apple-touch-icon" id="apple-icon" href="">
+    <link rel="manifest" id="manifest-link" href="">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #1890ff;
+            --danger: #ff4d4f;
+            --success: #52c41a;
+            --bg: #f4f5f7;
+            --card-bg: #ffffff;
+            --text-main: #2c3e50;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 12px;
+            color: #333;
+            user-select: none; 
+            -webkit-user-select: none;
+        }
+        .container {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 16px;
+            width: 100%;
+            overflow: hidden;
+        }
+        h2 { margin-top: 0; font-size: 1.3rem; color: var(--text-main); display: flex; justify-content: space-between; align-items: center;}
+        
+        .asset-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; width: 100%; }
+        .asset-row input {
+            min-width: 0;
+            padding: 12px 8px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            user-select: text; 
+            -webkit-user-select: text;
+        }
+        .input-name { flex: 4; }
+        .input-value { flex: 5; }
+        .input-value.error { border-color: var(--danger); background-color: #fff1f0; }
+        
+        .btn-del {
+            flex-shrink: 0;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            width: 38px;
+            height: 38px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            padding: 0;
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.05rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: opacity 0.2s;
+        }
+        .btn:active { opacity: 0.8; }
+        .btn-add { background: #f0f2f5; color: #333; }
+        .btn-save { background: var(--primary); color: #fff; box-shadow: 0 4px 10px rgba(24,144,255,0.3); margin-bottom: 0; }
+        .btn-danger-outline { background: transparent; color: var(--danger); border: 1px solid var(--danger); margin-top: 10px; }
+        
+        .install-box { background: var(--success); color: #fff; padding: 14px; border-radius: 10px; margin-bottom: 16px; display: none; text-align: center; font-weight: bold; box-shadow: 0 4px 10px rgba(82,196,26,0.3); cursor: pointer; }
+        .ios-hint { background: #fffbe6; color: #faad14; border: 1px solid #ffe58f; padding: 12px; border-radius: 10px; margin-bottom: 16px; display: none; font-size: 0.9rem; text-align: center; }
+        
+        .action-row { display: flex; gap: 8px; margin-bottom: 15px; }
+        .btn-half { flex: 1; padding: 12px 5px; font-size: 0.95rem; background: #e6f7ff; color: var(--primary); border-radius: 8px; border: none; font-weight: bold; cursor: pointer;}
+        
+        .summary { font-size: 1.4rem; font-weight: 800; text-align: center; margin: 20px 0; color: var(--primary); }
+        .chart-wrapper { position: relative; width: 100%; margin-bottom: 10px; }
+        
+        .history-list { max-height: 250px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; padding: 8px; background: #fafafa; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 6px; border-bottom: 1px solid #eee; font-size: 0.95rem; }
+        .history-item:last-child { border-bottom: none; }
+        .history-date { color: #666; font-size: 0.85rem; flex: 1; }
+        .history-total { font-weight: bold; color: var(--text-main); flex: 1; text-align: right; margin-right: 8px; font-size: 0.95rem;}
+        .action-btns { display: flex; gap: 4px; }
+        .btn-small { border: none; border-radius: 6px; padding: 6px 8px; font-size: 0.8rem; cursor: pointer; }
+        .btn-edit { background: #e6f7ff; color: var(--primary); }
+        .btn-delete { background: var(--danger); color: white; }
+        
+        #import-file { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="android-install-btn" class="install-box">📱 將追蹤器安裝至桌面</div>
+<div id="ios-install-hint" class="ios-hint">💡 <b>iOS 用戶：</b>點擊下方 <b>[分享]</b> 圖示，然後選擇 <b>[加入主畫面]</b> 即可像 App 一樣使用！</div>
+
+<div class="container">
+    <h2>💰 當前資產配置</h2>
+    <div id="asset-list"></div>
+    <button class="btn btn-add" onclick="addRow()">+ 新增資產項目</button>
+    
+    <div class="summary" id="total-display">總資產：$0</div>
+    <div class="chart-wrapper"><canvas id="pieChart"></canvas></div>
+    
+    <button class="btn btn-save" onclick="saveRecord()">💾 儲存今日總額至圖表</button>
+</div>
+
+<div class="container">
+    <h2>📈 資產成長趨勢</h2>
+    <div class="chart-wrapper"><canvas id="lineChart"></canvas></div>
+</div>
+
+<div class="container">
+    <h2>📁 紀錄與備份管理</h2>
+    <p style="font-size:0.8rem; color:#666; margin-top:0;">匯入備份時，會連同上面的「資產欄位配置」一起還原。</p>
+    <div class="action-row">
+        <button class="btn-half" onclick="exportData()">📤 匯出備份</button>
+        <button class="btn-half" onclick="document.getElementById('import-file').click()">📥 匯入紀錄</button>
+        <input type="file" id="import-file" accept=".json" onchange="importData(event)">
+    </div>
+    
+    <div id="history-manager-list" class="history-list"></div>
+    <button class="btn btn-danger-outline" onclick="clearAllHistory()">🗑️ 清空所有紀錄</button>
+</div>
+
+<script>
+    const appIconSVG = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231890ff'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>💰</text></svg>`;
+    document.getElementById('apple-icon').href = appIconSVG;
+
+    const manifest = {
+        "name": "個人資產追蹤器",
+        "short_name": "資產追蹤",
+        "start_url": location.pathname || "/",
+        "display": "standalone",
+        "background_color": "#f4f5f7",
+        "theme_color": "#1890ff",
+        "icons": [{ "src": appIconSVG, "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" }]
+    };
+    const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
+    document.getElementById('manifest-link').href = URL.createObjectURL(manifestBlob);
+
+    const swCode = `
+        const CACHE_NAME = 'asset-tracker-v10';
+        self.addEventListener('install', e => { self.skipWaiting(); });
+        self.addEventListener('activate', e => { e.waitUntil(clients.claim()); });
+        self.addEventListener('fetch', e => {
+            e.respondWith(caches.match(e.request).then(res => res || fetch(e.request).catch(() => new Response('Offline'))));
+        });
+    `;
+    const swBlob = new Blob([swCode], {type: 'application/javascript'});
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(err => console.log('SW Error:', err));
+    }
+
+    const isIos = () => /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+    const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+
+    if (isIos() && !isInStandaloneMode()) {
+        document.getElementById('ios-install-hint').style.display = 'block';
+    }
+
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        document.getElementById('android-install-btn').style.display = 'block';
+    });
+    document.getElementById('android-install-btn').addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') document.getElementById('android-install-btn').style.display = 'none';
+            deferredPrompt = null;
+        }
+    });
+
+    function getISODate(d = new Date()) {
+        const offset = d.getTimezoneOffset() * 60000;
+        return new Date(d.getTime() - offset).toISOString().split('T')[0];
+    }
+
+    let pieChartInstance = null;
+    let lineChartInstance = null;
+    
+    let currentAssets = JSON.parse(localStorage.getItem('assetCurrent')) || [
+        { name: '00631L', valueStr: '' }, { name: 'TSLA', valueStr: '' }, { name: '現金', valueStr: '' }
+    ];
+
+    function renderAssetList() {
+        const list = document.getElementById('asset-list');
+        list.innerHTML = '';
+        currentAssets.forEach((asset, index) => {
+            const div = document.createElement('div');
+            div.className = 'asset-row';
+            div.innerHTML = `
+                <input type="text" class="input-name" value="${asset.name}" placeholder="項目" onchange="saveCurrentState()">
+                <input type="text" class="input-value" value="${asset.valueStr}" placeholder="金額 (+-)" oninput="updateUI(this)">
+                <button class="btn-del" onclick="removeRow(${index})">×</button>
+            `;
+            list.appendChild(div);
+        });
+        updateUI();
+    }
+
+    function evalMath(str) {
+        if (!str) return { val: 0, err: false };
+        const sanitized = str.replace(/[^0-9\+\-\.]/g, '');
+        try {
+            if (/[\+\-]{2,}/.test(sanitized) || /[\+\-]$/.test(sanitized)) throw new Error('Syntax');
+            const result = new Function('return ' + sanitized)();
+            if (isNaN(result) || !isFinite(result) || result < 0) throw new Error('Invalid');
+            return { val: Number(result), err: false };
+        } catch (e) {
+            return { val: 0, err: true };
+        }
+    }
+
+    function addRow() { currentAssets.push({ name: '', valueStr: '' }); renderAssetList(); }
+    function removeRow(index) { currentAssets.splice(index, 1); renderAssetList(); }
+
+    function saveCurrentState() {
+        currentAssets = Array.from(document.querySelectorAll('.asset-row')).map(row => ({
+            name: row.querySelector('.input-name').value,
+            valueStr: row.querySelector('.input-value').value
+        }));
+        localStorage.setItem('assetCurrent', JSON.stringify(currentAssets));
+    }
+
+    function updateUI() {
+        saveCurrentState();
+        let labels = [], data = [], total = 0;
+
+        document.querySelectorAll('.asset-row').forEach(row => {
+            const name = row.querySelector('.input-name').value || '未命名';
+            const inputEl = row.querySelector('.input-value');
+            const mathResult = evalMath(inputEl.value);
+            
+            if (mathResult.err) {
+                inputEl.classList.add('error');
+            } else {
+                inputEl.classList.remove('error');
+                if (mathResult.val > 0) {
+                    labels.push(name); data.push(mathResult.val); total += mathResult.val;
+                }
+            }
+        });
+        
+        document.getElementById('total-display').innerText = '總資產：' + total.toLocaleString('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 });
+        drawPieChart(labels, data, total);
+    }
+
+    function drawPieChart(labels, data, total) {
+        const ctxPie = document.getElementById('pieChart').getContext('2d');
+        if (pieChartInstance) pieChartInstance.destroy();
+        pieChartInstance = new Chart(ctxPie, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{ data: data, backgroundColor: ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2', '#eb2f96'], borderWidth: 2, borderColor: '#ffffff' }]
+            },
+            options: {
+                responsive: true, cutout: '60%',
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: {size: 11} } },
+                    tooltip: { callbacks: { label: (ctx) => ` ${ctx.raw.toLocaleString()} (${total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : 0}%)` } }
+                }
+            }
+        });
+    }
+
+    function saveRecord() {
+        let total = 0;
+        document.querySelectorAll('.asset-row').forEach(row => {
+            const res = evalMath(row.querySelector('.input-value').value);
+            if(!res.err) total += res.val;
+        });
+
+        if (total === 0) return alert("目前總資產為 0 或算式錯誤，無法儲存。");
+
+        const today = getISODate();
+        let history = JSON.parse(localStorage.getItem('assetTrend')) || [];
+        
+        const existingIndex = history.findIndex(item => item.date === today);
+        if (existingIndex >= 0) history[existingIndex].total = total;
+        else history.push({ date: today, total: total });
+
+        localStorage.setItem('assetTrend', JSON.stringify(history));
+        alert("📊 今日紀錄已儲存！");
+        updateLineChart();
+        renderHistoryList();
+    }
+
+    function updateLineChart() {
+        let history = JSON.parse(localStorage.getItem('assetTrend')) || [];
+        history.sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        const ctxLine = document.getElementById('lineChart').getContext('2d');
+        if (lineChartInstance) lineChartInstance.destroy();
+        lineChartInstance = new Chart(ctxLine, {
+            type: 'line',
+            data: {
+                labels: history.map(item => item.date.substring(5)), 
+                datasets: [{ label: '總資產', data: history.map(item => item.total), borderColor: '#52c41a', backgroundColor: 'rgba(82, 196, 26, 0.1)', fill: true, tension: 0.3 }]
+            },
+            options: { responsive: true, scales: { y: { beginAtZero: false, ticks: { font: {size: 10} } }, x: { ticks: { font: {size: 10} } } }, plugins: { legend: { display: false } } }
+        });
+    }
+
+    function renderHistoryList() {
+        const history = JSON.parse(localStorage.getItem('assetTrend')) || [];
+        const listContainer = document.getElementById('history-manager-list');
+        listContainer.innerHTML = '';
+
+        if (history.length === 0) return listContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #999;">目前沒有歷史紀錄</div>';
+
+        const historyWithIndex = history.map((item, idx) => ({ ...item, originalIndex: idx }));
+        historyWithIndex.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        historyWithIndex.forEach((item) => {
+            const div = document.createElement('div');
+            div.className = 'history-item';
+            div.innerHTML = `
+                <div class="history-date">${item.date}</div>
+                <div class="history-total">$${item.total.toLocaleString()}</div>
+                <div class="action-btns">
+                    <button class="btn-small btn-edit" onclick="editHistoryRecord(${item.originalIndex})">編輯</button>
+                    <button class="btn-small btn-delete" onclick="deleteHistoryRecord(${item.originalIndex})">刪除</button>
+                </div>
+            `;
+            listContainer.appendChild(div);
+        });
+    }
+
+    function editHistoryRecord(index) {
+        let history = JSON.parse(localStorage.getItem('assetTrend')) || [];
+        let currentVal = history[index].total;
+        let newVal = prompt(`修改 ${history[index].date} 的總資產金額：\n(僅允許輸入純數字)`, currentVal);
+        
+        if (newVal !== null && newVal.trim() !== '') {
+            let parsedVal = Number(newVal.replace(/,/g, ''));
+            if (!isNaN(parsedVal) && parsedVal >= 0) {
+                history[index].total = parsedVal;
+                localStorage.setItem('assetTrend', JSON.stringify(history));
+                renderHistoryList();
+                updateLineChart();
+            } else {
+                alert("❌ 輸入錯誤，請輸入有效的正數字。");
+            }
+        }
+    }
+
+    function deleteHistoryRecord(index) {
+        if (!confirm('確定要刪除這筆紀錄嗎？')) return;
+        let history = JSON.parse(localStorage.getItem('assetTrend')) || [];
+        history.splice(index, 1);
+        localStorage.setItem('assetTrend', JSON.stringify(history));
+        renderHistoryList(); updateLineChart();
+    }
+
+    function clearAllHistory() {
+        if (!confirm('⚠️ 警告：即將清空所有紀錄！\n確定要繼續嗎？')) return;
+        localStorage.setItem('assetTrend', JSON.stringify([]));
+        renderHistoryList(); updateLineChart();
+    }
+
+    function exportData() {
+        const data = { 
+            currentAssets: JSON.parse(localStorage.getItem('assetCurrent')) || [], 
+            history: JSON.parse(localStorage.getItem('assetTrend')) || [] 
+        };
+        const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+        const a = document.createElement('a');
+        a.href = url; a.download = `資產備份_${getISODate()}.json`; a.click(); URL.revokeObjectURL(url);
+    }
+
+    function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                let importedAssets = data.currentAssets || null;
+                let importedHistory = data.history || (Array.isArray(data) ? data : null);
+
+                if (importedHistory && Array.isArray(importedHistory)) {
+                    localStorage.setItem('assetTrend', JSON.stringify(importedHistory));
+                    if (importedAssets && Array.isArray(importedAssets)) {
+                        localStorage.setItem('assetCurrent', JSON.stringify(importedAssets));
+                        currentAssets = importedAssets;
+                    }
+                    renderAssetList(); 
+                    updateLineChart(); 
+                    renderHistoryList();
+                    alert("✅ 匯入成功！資產欄位與紀錄皆已還原。");
+                } else {
+                    alert("❌ 檔案格式不正確。");
+                }
+            } catch (err) { alert("❌ 檔案解析失敗。"); }
+        };
+        reader.readAsText(file);
+        event.target.value = ''; 
+    }
+
+    renderAssetList(); updateLineChart(); renderHistoryList();
+</script>
+</body>
+</html>
+
+
