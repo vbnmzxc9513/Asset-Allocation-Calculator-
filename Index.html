@@ -41,6 +41,7 @@
             overflow: hidden;
         }
         h2 { margin-top: 0; font-size: 1.3rem; color: var(--text-main); display: flex; justify-content: space-between; align-items: center;}
+        .version-tag { font-size: 0.8rem; color: #aaa; font-weight: normal; background: #eee; padding: 2px 6px; border-radius: 4px; }
         
         #system-alert { display: none; padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 0.9rem; font-weight: bold; text-align: center; }
         .alert-error { background: #fff1f0; color: #f5222d; border: 1px solid #ffa39e; }
@@ -57,12 +58,7 @@
             flex-direction: column;
             gap: 8px;
         }
-        .asset-row-1, .asset-row-2 {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            width: 100%;
-        }
+        .asset-row-1, .asset-row-2 { display: flex; gap: 8px; align-items: center; width: 100%; }
         
         /* 響應式：螢幕寬度大於 600px 變單列 */
         @media (min-width: 600px) {
@@ -83,21 +79,11 @@
         .input-cat { flex: 1; }
         .input-val { flex: 1; }
         
-        .pct-group {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: flex-end;
-            min-width: 75px;
-            flex-shrink: 0;
-            line-height: 1.3;
-        }
+        .pct-group { display: flex; flex-direction: column; justify-content: center; align-items: flex-end; min-width: 75px; flex-shrink: 0; line-height: 1.3; }
         .cat1-lbl { font-size: 0.75rem; color: #888; }
         .cat2-lbl { font-size: 0.85rem; color: var(--primary); font-weight: bold; }
         
-        .btn-del {
-            flex-shrink: 0; background: var(--danger); color: white; border: none; border-radius: 8px; width: 42px; height: 42px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
-        }
+        .btn-del { flex-shrink: 0; background: var(--danger); color: white; border: none; border-radius: 8px; width: 42px; height: 42px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         
         .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 1.05rem; font-weight: bold; cursor: pointer; margin-bottom: 12px; transition: opacity 0.2s; }
         .btn:active { opacity: 0.8; }
@@ -132,11 +118,12 @@
 <body>
 
 <div class="container">
-    <h2>💰 當前資產配置</h2>
+    <!-- 加入版本號標籤，方便確認是否讀取到最新版 -->
+    <h2>💰 當前資產配置 <span class="version-tag">v2.0</span></h2>
     <div id="system-alert"></div>
     <div id="asset-list"></div>
     
-    <button id="btn-add-row" class="btn btn-add">+ 新增資產項目</button>
+    <button type="button" id="btn-add-row" class="btn btn-add">+ 新增資產項目</button>
     
     <div class="summary" id="total-display">總資產：$0</div>
     
@@ -151,7 +138,7 @@
         </div>
     </div>
     
-    <button id="btn-save-record" class="btn btn-save" style="margin-top: 15px;">💾 儲存今日總額至圖表</button>
+    <button type="button" id="btn-save-record" class="btn btn-save" style="margin-top: 15px;">💾 儲存今日總額至圖表</button>
 </div>
 
 <div class="container">
@@ -161,56 +148,76 @@
 
 <div class="container">
     <h2>📁 紀錄與備份管理</h2>
-    <p style="font-size:0.8rem; color:#666; margin-top:0;">若匯入無反應，請改用系統預設瀏覽器 (Safari/Chrome) 開啟此頁面。</p>
+    <p style="font-size:0.8rem; color:#666; margin-top:0;">若匯入無反應，請改用系統預設瀏覽器開啟。</p>
     <div class="action-row">
-        <button id="btn-export" class="btn-half">📤 匯出備份</button>
-        <button id="btn-trigger-import" class="btn-half">📥 匯入紀錄</button>
+        <button type="button" id="btn-export" class="btn-half">📤 匯出備份</button>
+        <button type="button" id="btn-trigger-import" class="btn-half">📥 匯入紀錄</button>
         <input type="file" id="import-file" accept=".json">
     </div>
     
     <div id="history-manager-list" class="history-list"></div>
-    <button id="btn-clear-history" class="btn btn-danger-outline">🗑️ 清空所有紀錄</button>
+    <button type="button" id="btn-clear-history" class="btn btn-danger-outline">🗑️ 清空所有紀錄</button>
 </div>
 
 <script>
-    // 立即執行函式 (IIFE) 封裝所有邏輯，避免全域變數污染
-    (function() {
-        /* --- PWA 設定 --- */
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        /* --- 升級版 PWA Service Worker (強制網路更新機制) --- */
         const appIconSVG = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231890ff'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>💰</text></svg>`;
         document.getElementById('apple-icon').href = appIconSVG;
 
         const manifest = {
-            "name": "資產配置追蹤",
-            "short_name": "資產追蹤",
-            "start_url": location.pathname || "/",
-            "display": "standalone",
-            "background_color": "#f4f5f7",
-            "theme_color": "#1890ff",
+            "name": "資產配置追蹤", "short_name": "資產追蹤", "start_url": location.pathname || "/", "display": "standalone",
+            "background_color": "#f4f5f7", "theme_color": "#1890ff",
             "icons": [{ "src": appIconSVG, "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" }]
         };
         const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
         document.getElementById('manifest-link').href = URL.createObjectURL(manifestBlob);
 
-        /* --- 核心狀態變數 --- */
-        let chartCat1 = null;
-        let chartCat2 = null;
-        let lineChartInstance = null;
-        let debounceTimer; 
-        
-        let currentAssets = JSON.parse(localStorage.getItem('assetCurrent_v2')) || [
-            { cat1: 'ETF', cat2: '00631L', valueStr: '' }, 
-            { cat1: '美股', cat2: 'TSLA', valueStr: '' }, 
-            { cat1: '現金', cat2: '台幣', valueStr: '' }
-        ];
+        // 改寫為 Network First，並強制清除舊版本快取
+        const swCode = `
+            const CACHE_NAME = 'asset-tracker-v99-force-update';
+            self.addEventListener('install', e => { self.skipWaiting(); });
+            self.addEventListener('activate', e => {
+                e.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))));
+                self.clients.claim();
+            });
+            self.addEventListener('fetch', e => {
+                e.respondWith(
+                    fetch(e.request)
+                    .then(res => {
+                        const resClone = res.clone();
+                        caches.open(CACHE_NAME).then(cache => cache.put(e.request, resClone));
+                        return res;
+                    })
+                    .catch(() => caches.match(e.request))
+                );
+            });
+        `;
+        const swBlob = new Blob([swCode], {type: 'application/javascript'});
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(err => console.log('SW Error:', err));
+        }
 
-        // 舊版資料遷移
-        const oldData = localStorage.getItem('assetCurrent');
-        if (oldData && !localStorage.getItem('assetCurrent_v2')) {
-            let parsedOld = JSON.parse(oldData);
-            currentAssets = parsedOld.map(item => ({
-                cat1: '未分類', cat2: item.name || '未命名', valueStr: item.valueStr || ''
-            }));
-            localStorage.setItem('assetCurrent_v2', JSON.stringify(currentAssets));
+        /* --- 核心變數與儲存保護 --- */
+        let chartCat1 = null, chartCat2 = null, lineChartInstance = null, debounceTimer; 
+        let currentAssets = [];
+        
+        try {
+            currentAssets = JSON.parse(localStorage.getItem('assetCurrent_v2')) || [
+                { cat1: 'ETF', cat2: '00631L', valueStr: '' }, 
+                { cat1: '美股', cat2: 'TSLA', valueStr: '' }, 
+                { cat1: '現金', cat2: '台幣', valueStr: '' }
+            ];
+            const oldData = localStorage.getItem('assetCurrent');
+            if (oldData && !localStorage.getItem('assetCurrent_v2')) {
+                let parsedOld = JSON.parse(oldData);
+                currentAssets = parsedOld.map(item => ({ cat1: '未分類', cat2: item.name || '未命名', valueStr: item.valueStr || '' }));
+                localStorage.setItem('assetCurrent_v2', JSON.stringify(currentAssets));
+            }
+        } catch (err) {
+            console.error('LocalStorage 存取錯誤', err);
+            currentAssets = [{ cat1: '', cat2: '', valueStr: '' }];
         }
 
         /* --- 工具函式 --- */
@@ -240,7 +247,7 @@
             }
         }
 
-        /* --- UI 渲染與事件綁定 --- */
+        /* --- 核心渲染與計算 --- */
         function renderAssetList() {
             const list = document.getElementById('asset-list');
             list.innerHTML = '';
@@ -250,8 +257,8 @@
                 card.className = 'asset-card';
                 card.innerHTML = `
                     <div class="asset-row-1">
-                        <input type="text" class="input-cat cat1" value="${asset.cat1}" placeholder="第一層 (如: ETF)">
-                        <input type="text" class="input-cat cat2" value="${asset.cat2}" placeholder="第二層 (如: 0050)">
+                        <input type="text" class="input-cat cat1" value="${asset.cat1}" placeholder="大類 (如: ETF)">
+                        <input type="text" class="input-cat cat2" value="${asset.cat2}" placeholder="明細 (如: 0050)">
                     </div>
                     <div class="asset-row-2">
                         <input type="text" class="input-val" value="${asset.valueStr}" placeholder="金額 (支援加減)">
@@ -259,23 +266,19 @@
                             <div class="cat1-lbl">大類 0%</div>
                             <div class="cat2-lbl">明細 0%</div>
                         </div>
-                        <button class="btn-del" data-index="${index}">×</button>
+                        <button type="button" class="btn-del" data-index="${index}">×</button>
                     </div>
                 `;
                 
-                // 動態綁定 input 事件 (支援防抖)
-                const inputs = card.querySelectorAll('input');
-                inputs.forEach(input => {
+                card.querySelectorAll('input').forEach(input => {
                     input.addEventListener('input', () => {
                         clearTimeout(debounceTimer);
                         debounceTimer = setTimeout(() => { updateUI(); }, 300);
                     });
                 });
 
-                // 動態綁定刪除事件
                 card.querySelector('.btn-del').addEventListener('click', (e) => {
-                    const idx = parseInt(e.target.getAttribute('data-index'));
-                    currentAssets.splice(idx, 1);
+                    currentAssets.splice(index, 1);
                     renderAssetList();
                 });
 
@@ -284,29 +287,22 @@
             updateUI(); 
         }
 
-        function saveCurrentState() {
+        function updateUI() {
             currentAssets = Array.from(document.querySelectorAll('.asset-card')).map(card => ({
                 cat1: card.querySelector('.cat1').value,
                 cat2: card.querySelector('.cat2').value,
                 valueStr: card.querySelector('.input-val').value
             }));
-            localStorage.setItem('assetCurrent_v2', JSON.stringify(currentAssets));
-        }
+            
+            try { localStorage.setItem('assetCurrent_v2', JSON.stringify(currentAssets)); } catch(e){}
+            
+            let total = 0, mapCat1 = {}, mapCat2 = {}, validRows = [];
 
-        function updateUI() {
-            saveCurrentState();
-            let total = 0;
-            let mapCat1 = {};
-            let mapCat2 = {};
-            let validRows = [];
-
-            // 計算總和與聚合
             document.querySelectorAll('.asset-card').forEach(card => {
                 const cat1 = card.querySelector('.cat1').value || '未分類';
                 const cat2 = card.querySelector('.cat2').value || '未命名';
                 const valInput = card.querySelector('.input-val');
                 const mathResult = evalMath(valInput.value);
-                
                 validRows.push({ card, cat1, cat2, valInput, mathResult });
 
                 if (!mathResult.err && mathResult.val > 0) {
@@ -316,25 +312,19 @@
                 }
             });
 
-            // 回填比例標籤
             validRows.forEach(row => {
                 const lbl1 = row.card.querySelector('.cat1-lbl');
                 const lbl2 = row.card.querySelector('.cat2-lbl');
-
                 if (row.mathResult.err) {
                     row.valInput.style.borderColor = '#ff4d4f';
-                    lbl1.innerText = '錯誤';
-                    lbl2.innerText = '錯誤';
+                    lbl1.innerText = '錯誤'; lbl2.innerText = '錯誤';
                 } else {
                     row.valInput.style.borderColor = '#ddd';
                     if (row.mathResult.val > 0 && total > 0) {
-                        const p1 = ((mapCat1[row.cat1] / total) * 100).toFixed(1);
-                        const p2 = ((mapCat2[row.cat2] / total) * 100).toFixed(1);
-                        lbl1.innerText = `大類 ${p1}%`;
-                        lbl2.innerText = `明細 ${p2}%`;
+                        lbl1.innerText = `大類 ${((mapCat1[row.cat1] / total) * 100).toFixed(1)}%`;
+                        lbl2.innerText = `明細 ${((mapCat2[row.cat2] / total) * 100).toFixed(1)}%`;
                     } else {
-                        lbl1.innerText = `大類 0%`;
-                        lbl2.innerText = `明細 0%`;
+                        lbl1.innerText = `大類 0%`; lbl2.innerText = `明細 0%`;
                     }
                 }
             });
@@ -342,100 +332,60 @@
             document.getElementById('total-display').innerText = '總資產：' + total.toLocaleString('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 });
             
             const formatData = (map) => {
-                let labels = [];
-                let data = [];
+                let labels = [], data = [];
                 for (let [key, val] of Object.entries(map)) {
-                    let pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                    labels.push(`${key} (${pct}%)`);
+                    labels.push(`${key} (${total>0 ? ((val/total)*100).toFixed(1) : 0}%)`);
                     data.push(val);
                 }
                 return { labels, data };
             };
-
             drawPieCharts(formatData(mapCat1), formatData(mapCat2));
         }
 
-        /* --- 圖表繪製 --- */
-        const colorPalette1 = ['#1890ff', '#faad14', '#52c41a', '#f5222d', '#722ed1', '#13c2c2', '#eb2f96'];
-        const colorPalette2 = ['#36cfc9', '#b37feb', '#ff7a45', '#fadb14', '#bae637', '#ff85c0', '#597ef7'];
+        const cp1 = ['#1890ff', '#faad14', '#52c41a', '#f5222d', '#722ed1', '#13c2c2', '#eb2f96'];
+        const cp2 = ['#36cfc9', '#b37feb', '#ff7a45', '#fadb14', '#bae637', '#ff85c0', '#597ef7'];
 
         function drawPieCharts(cat1Data, cat2Data) {
-            const config = (dataObj, colors) => ({
-                type: 'doughnut',
-                data: { labels: dataObj.labels, datasets: [{ data: dataObj.data, backgroundColor: colors, borderWidth: 2, borderColor: '#ffffff' }] },
-                options: { 
-                    responsive: true, maintainAspectRatio: false, cutout: '55%', 
-                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: {size: 11} } }, tooltip: { callbacks: { label: (ctx) => ` $${ctx.raw.toLocaleString()}` } } } 
-                }
+            const cfg = (dObj, colors) => ({
+                type: 'doughnut', data: { labels: dObj.labels, datasets: [{ data: dObj.data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '55%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: {size: 11} } }, tooltip: { callbacks: { label: (ctx) => ` $${ctx.raw.toLocaleString()}` } } } }
             });
-
-            const ctx1 = document.getElementById('pieChartCat1').getContext('2d');
             if (chartCat1) chartCat1.destroy();
-            chartCat1 = new Chart(ctx1, config(cat1Data, colorPalette1));
-
-            const ctx2 = document.getElementById('pieChartCat2').getContext('2d');
+            chartCat1 = new Chart(document.getElementById('pieChartCat1').getContext('2d'), cfg(cat1Data, cp1));
             if (chartCat2) chartCat2.destroy();
-            chartCat2 = new Chart(ctx2, config(cat2Data, colorPalette2));
+            chartCat2 = new Chart(document.getElementById('pieChartCat2').getContext('2d'), cfg(cat2Data, cp2));
         }
 
         function updateLineChart() {
             let history = JSON.parse(localStorage.getItem('assetTrend')) || [];
             history.sort((a, b) => new Date(a.date) - new Date(b.date));
-            
-            const ctxLine = document.getElementById('lineChart').getContext('2d');
             if (lineChartInstance) lineChartInstance.destroy();
-            lineChartInstance = new Chart(ctxLine, {
-                type: 'line',
-                data: { labels: history.map(item => item.date.substring(5)), datasets: [{ label: '總資產', data: history.map(item => item.total), borderColor: '#52c41a', backgroundColor: 'rgba(82, 196, 26, 0.1)', fill: true, tension: 0.3 }] },
+            lineChartInstance = new Chart(document.getElementById('lineChart').getContext('2d'), {
+                type: 'line', data: { labels: history.map(item => item.date.substring(5)), datasets: [{ label: '總資產', data: history.map(item => item.total), borderColor: '#52c41a', backgroundColor: 'rgba(82, 196, 26, 0.1)', fill: true, tension: 0.3 }] },
                 options: { responsive: true, scales: { y: { beginAtZero: false, ticks: { font: {size: 10} } }, x: { ticks: { font: {size: 10} } } }, plugins: { legend: { display: false } } }
             });
-        }
-
-        /* --- 歷史紀錄管理 --- */
-        function saveRecord() {
-            let total = 0;
-            document.querySelectorAll('.asset-card').forEach(card => {
-                const res = evalMath(card.querySelector('.input-val').value);
-                if(!res.err) total += res.val;
-            });
-
-            if (total === 0) return alert("目前總資產為 0 或算式錯誤，無法儲存。");
-
-            const today = getISODate();
-            let history = JSON.parse(localStorage.getItem('assetTrend')) || [];
-            
-            const existingIndex = history.findIndex(item => item.date === today);
-            if (existingIndex >= 0) history[existingIndex].total = total;
-            else history.push({ date: today, total: total });
-
-            localStorage.setItem('assetTrend', JSON.stringify(history));
-            showAlert("📊 今日紀錄已儲存！");
-            updateLineChart();
-            renderHistoryList();
         }
 
         function renderHistoryList() {
             const history = JSON.parse(localStorage.getItem('assetTrend')) || [];
             const listContainer = document.getElementById('history-manager-list');
             listContainer.innerHTML = '';
-
             if (history.length === 0) return listContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #999;">目前沒有歷史紀錄</div>';
-
-            const historyWithIndex = history.map((item, idx) => ({ ...item, originalIndex: idx }));
-            historyWithIndex.sort((a, b) => new Date(b.date) - new Date(a.date));
-
+            
+            const historyWithIndex = history.map((item, idx) => ({ ...item, originalIndex: idx })).sort((a, b) => new Date(b.date) - new Date(a.date));
             historyWithIndex.forEach((item) => {
                 const div = document.createElement('div');
                 div.className = 'history-item';
                 div.innerHTML = `
-                    <div class="history-date">${item.date}</div>
-                    <div class="history-total">$${item.total.toLocaleString()}</div>
+                    <div class="history-date">${item.date}</div><div class="history-total">$${item.total.toLocaleString()}</div>
                     <div class="action-btns">
-                        <button class="btn-small btn-edit" data-index="${item.originalIndex}">編輯</button>
-                        <button class="btn-small btn-delete" data-index="${item.originalIndex}">刪除</button>
-                    </div>
-                `;
-                
+                        <button type="button" class="btn-small btn-edit" data-index="${item.originalIndex}">編輯</button>
+                        <button type="button" class="btn-small btn-delete" data-index="${item.originalIndex}">刪除</button>
+                    </div>`;
                 div.querySelector('.btn-edit').addEventListener('click', (e) => {
-                    const idx = parseInt(e.target.getAttribute('data-index'));
-         
+                    let h = JSON.parse(localStorage.getItem('assetTrend')) || [];
+                    let newVal = prompt(`修改 ${h[item.originalIndex].date} 的總資產金額：`, h[item.originalIndex].total);
+                    if (newVal !== null && newVal.trim() !== '') {
+                        let parsedVal = Number(newVal.replace(/,/g, ''));
+                        if (!isNaN(parsedVal) && parsedVal >= 0) {
+                            h[item.originalIndex].total = parsedV
