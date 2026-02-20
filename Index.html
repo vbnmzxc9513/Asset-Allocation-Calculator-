@@ -9,22 +9,31 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="資產追蹤">
     
-    <!-- 完美解決 Icon 問題：靜態寫死 SVG，確保任何手機都能一秒抓到錢袋圖示 -->
+    <!-- 核彈級快取清除器：一開啟網頁立刻摧毀所有舊的 Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                }
+            });
+        }
+    </script>
+
+    <!-- 靜態寫死 SVG 圖示，確保加入主畫面時錢袋圖示不會消失 -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231890ff'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle' fill='white'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E">
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231890ff'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle' fill='white'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E">
+    <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22%E8%B3%87%E7%94%A2%E9%85%8D%E7%BD%AE%E8%BF%BD%E8%B9%A4%22%2C%22short_name%22%3A%22%E8%B3%87%E7%94%A2%E8%BF%BD%E8%B9%A4%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f4f5f7%22%2C%22theme_color%22%3A%22%231890ff%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%253E%253Crect%20width%3D'100'%20height%3D'100'%20rx%3D'20'%20fill%3D'%25231890ff'%2F%253E%253Ctext%20x%3D'50'%20y%3D'65'%20font-size%3D'50'%20text-anchor%3D'middle'%20fill%3D'white'%253E%25F0%259F%2592%25B0%253C%2Ftext%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22192x192%20512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D">
     
     <style>
-        :root {
-            --primary: #1890ff; --danger: #ff4d4f; --success: #52c41a;
-            --bg: #f4f5f7; --card-bg: #ffffff; --text-main: #2c3e50;
-        }
+        :root { --primary: #1890ff; --danger: #ff4d4f; --success: #52c41a; --bg: #f4f5f7; --card-bg: #ffffff; --text-main: #2c3e50; }
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg); margin: 0; padding: 12px; color: #333; user-select: none; -webkit-user-select: none; }
         .container { background: var(--card-bg); border-radius: 16px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 16px; width: 100%; overflow: hidden; }
         h2 { margin-top: 0; font-size: 1.3rem; color: var(--text-main); display: flex; justify-content: space-between; align-items: center;}
-        .version-tag { font-size: 0.8rem; color: #fff; font-weight: bold; background: var(--success); padding: 2px 8px; border-radius: 6px; }
+        .version-tag { font-size: 0.8rem; color: #fff; font-weight: bold; background: #1890ff; padding: 2px 8px; border-radius: 6px; }
         
-        #sys-msg { display: none; padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 0.9rem; font-weight: bold; text-align: center; }
+        #sys-msg { display: none; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.9rem; font-weight: bold; text-align: center; line-height: 1.4;}
         .msg-err { background: #fff1f0; color: #f5222d; border: 1px solid #ffa39e; }
         .msg-ok { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
 
@@ -68,10 +77,9 @@
 <body>
 
 <div class="container">
-    <h2>💰 當前配置 <span class="version-tag">v7.0 重生版</span></h2>
+    <h2>💰 當前配置 <span class="version-tag">v9.0 淨化版</span></h2>
     <div id="sys-msg"></div>
     
-    <!-- 列表容器 -->
     <div id="asset-list"></div>
     
     <button type="button" id="btn-add" class="btn btn-add">+ 新增資產項目</button>
@@ -110,11 +118,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     
-    /* ==========================================
-       一、安全儲存裝甲 (SafeStorage)
-       即使三星瀏覽器封鎖 localStorage，系統也不會當機，
-       會自動轉為「記憶體暫存模式」。
-       ========================================== */
+    // 安全儲存裝甲 (防當機機制)
     let useMemoryStorage = false;
     let memoryStorage = {};
     
@@ -126,7 +130,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return val ? JSON.parse(val) : null;
             } catch (err) {
                 useMemoryStorage = true;
-                showMsg('⚠️ 瀏覽器封鎖了存檔權限，系統已切換為「暫存模式」。關閉網頁後資料將會消失。', true);
                 return null;
             }
         },
@@ -137,22 +140,17 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) {
                 useMemoryStorage = true;
                 memoryStorage[key] = JSON.stringify(val);
-                showMsg('⚠️ 儲存空間異常或被封鎖，目前資料僅暫存於畫面中。', true);
+                showMsg('⚠️ 瀏覽器封鎖存檔權限，資料暫存中（關閉將遺失）', true);
             }
         }
     };
 
-    /* ==========================================
-       二、核心狀態與工具
-       ========================================== */
     let chartCat1 = null, chartCat2 = null, lineChartInstance = null;
-    let debounceTimer = null;
-    let isChartReady = false;
-    let currentAssets = [];
+    let debounceTimer = null, isChartReady = false, currentAssets = [];
 
     function showMsg(text, isError = false) {
         const m = document.getElementById('sys-msg');
-        m.innerText = text;
+        m.innerHTML = text;
         m.className = isError ? 'msg-err' : 'msg-ok';
         m.style.display = 'block';
         setTimeout(() => m.style.display = 'none', 5000);
@@ -176,11 +174,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    /* ==========================================
-       三、UI 渲染與事件委派 (防彈設計)
-       捨棄 Inline onclick，改用 Event Delegation，
-       保證按鈕絕對能被點擊。
-       ========================================== */
     const listEl = document.getElementById('asset-list');
 
     function renderList() {
@@ -207,7 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUI();
     }
 
-    // 事件委派：統一監聽列表內的輸入與刪除動作
     listEl.addEventListener('input', (e) => {
         if (e.target.tagName === 'INPUT') {
             clearTimeout(debounceTimer);
@@ -224,7 +216,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function updateUI() {
-        // 同步狀態
         const cards = document.querySelectorAll('.asset-card');
         if (cards.length > 0 || currentAssets.length === 0) {
             currentAssets = Array.from(cards).map(card => ({
@@ -274,8 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const fmt = (m) => {
                 let lbl = [], dat = [];
                 for (let [k, v] of Object.entries(m)) {
-                    lbl.push(`${k} (${total>0 ? ((v/total)*100).toFixed(1) : 0}%)`);
-                    dat.push(v);
+                    lbl.push(`${k} (${total>0 ? ((v/total)*100).toFixed(1) : 0}%)`); dat.push(v);
                 }
                 return { labels: lbl, data: dat };
             };
@@ -283,9 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    /* ==========================================
-       四、圖表繪製與背景載入
-       ========================================== */
     function drawCharts(d1, d2) {
         document.querySelectorAll('.c-loader').forEach(el => el.style.display = 'none');
         const cp1 = ['#1890ff', '#faad14', '#52c41a', '#f5222d', '#722ed1', '#13c2c2', '#eb2f96'];
@@ -307,24 +294,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 非同步載入 Chart.js
-    const script = document.createElement('script');
-    script.src = "https://cdn.jsdelivr.net/npm/chart.js";
-    script.onload = () => { isChartReady = true; updateUI(); drawLine(); };
-    script.onerror = () => {
-        showMsg("⚠️ 您的瀏覽器封鎖了圖表繪製功能，但記帳與存檔功能仍可正常使用。", true);
-        document.querySelectorAll('.c-loader').forEach(el => el.innerText = "圖表遭阻擋");
-    };
-    document.body.appendChild(script);
-
-    /* ==========================================
-       五、紀錄管理與備份
-       ========================================== */
     function renderHistory() {
         const histContainer = document.getElementById('history-manager-list');
         histContainer.innerHTML = '';
         let hist = SafeStorage.get('assetTrend') || [];
-        
         if (hist.length === 0) { histContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #999;">目前沒有歷史紀錄</div>'; return; }
         
         hist.map((item, idx) => ({ ...item, oIdx: idx })).sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(item => {
@@ -344,7 +317,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const idx = e.target.getAttribute('data-idx');
         if (idx === null) return;
         let h = SafeStorage.get('assetTrend') || [];
-        
         if (e.target.classList.contains('btn-edit')) {
             let newVal = prompt(`修改 ${h[idx].date} 的總金額：`, h[idx].total);
             if (newVal && !isNaN(Number(newVal.replace(/,/g, '')))) {
@@ -356,12 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    /* ==========================================
-       六、主按鈕綁定與啟動
-       ========================================== */
-    document.getElementById('btn-add').addEventListener('click', () => {
-        currentAssets.push({ cat1: '', cat2: '', valueStr: '' }); renderList();
-    });
+    document.getElementById('btn-add').addEventListener('click', () => { currentAssets.push({ cat1: '', cat2: '', valueStr: '' }); renderList(); });
 
     document.getElementById('btn-save').addEventListener('click', () => {
         let total = 0;
@@ -369,19 +336,73 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = evalMath(card.querySelector('.input-val').value);
             if(!res.err) total += res.val;
         });
-        if (total === 0) return showMsg("無法儲存：請先輸入正確的金額", true);
+        if (total === 0) return showMsg("無法儲存：金額異常", true);
 
         const today = getISODate();
         let hist = SafeStorage.get('assetTrend') || [];
         const existIdx = hist.findIndex(i => i.date === today);
         if (existIdx >= 0) hist[existIdx].total = total; else hist.push({ date: today, total: total });
         
-        SafeStorage.set('assetTrend', hist);
-        showMsg("✅ 今日紀錄已儲存！"); drawLine(); renderHistory();
+        SafeStorage.set('assetTrend', hist); showMsg("✅ 今日紀錄已儲存！"); drawLine(); renderHistory();
     });
 
     document.getElementById('btn-export').addEventListener('click', () => {
         const data = { currentAssets_v2: SafeStorage.get('assetCurrent_v2') || [], history: SafeStorage.get('assetTrend') || [] };
         const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
         const a = document.createElement('a'); a.href = url; a.download = `備份_${getISODate()}.json`; a.click(); URL.revokeObjectURL(url);
-  
+    });
+
+    document.getElementById('btn-import-trig').addEventListener('click', () => document.getElementById('import-file').click());
+    
+    document.getElementById('import-file').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                const data = JSON.parse(evt.target.result);
+                let hist = data.history || (Array.isArray(data) ? data : null);
+                if (hist && Array.isArray(hist)) {
+                    SafeStorage.set('assetTrend', hist);
+                    if (data.currentAssets_v2) { currentAssets = data.currentAssets_v2; SafeStorage.set('assetCurrent_v2', currentAssets); }
+                    renderList(); drawLine(); renderHistory(); showMsg("✅ 匯入成功！");
+                } else throw new Error("無效資料");
+            } catch (err) { showMsg(`❌ 匯入失敗`, true); }
+        };
+        reader.readAsText(file); e.target.value = ''; 
+    });
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+        if (confirm('確定清空所有紀錄？')) { SafeStorage.set('assetTrend', []); renderHistory(); drawLine(); }
+    });
+
+    window.addEventListener('resize', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => updateUI(), 200); });
+
+    // --- 系統開機程序 ---
+    const rawData = SafeStorage.get('assetCurrent_v2');
+    if (Array.isArray(rawData) && rawData.length > 0) {
+        currentAssets = rawData;
+    } else {
+        const old = SafeStorage.get('assetCurrent');
+        if (old && Array.isArray(old)) currentAssets = old.map(i => ({ cat1: '未分類', cat2: i.name || '未命名', valueStr: i.valueStr || '' }));
+        else currentAssets = [ { cat1: 'ETF', cat2: '00631L', valueStr: '' }, { cat1: '美股', cat2: 'TSLA', valueStr: '' }, { cat1: '現金', cat2: '台幣', valueStr: '' } ];
+        SafeStorage.set('assetCurrent_v2', currentAssets);
+    }
+    
+    renderList(); 
+    renderHistory();
+
+    // 延遲載入圖表，絕不干擾按鈕
+    setTimeout(() => {
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/chart.js";
+        script.onload = () => { isChartReady = true; updateUI(); drawLine(); };
+        script.onerror = () => document.querySelectorAll('.c-loader').forEach(el => el.innerText = "圖表遭阻擋");
+        document.body.appendChild(script);
+    }, 100);
+});
+</script>
+</body>
+</html>
+
+
