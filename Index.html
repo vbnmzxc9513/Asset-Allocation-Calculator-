@@ -9,10 +9,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="資產追蹤">
     
-    <!-- 完美解決 Icon 問題：將 Manifest 與錢袋 SVG 直接寫死在 HTML 標頭，三星瀏覽器也能秒抓 -->
+    <!-- 完美解決 Icon 問題：靜態寫死 SVG，確保任何手機都能一秒抓到錢袋圖示 -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231890ff'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle' fill='white'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E">
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231890ff'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle' fill='white'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E">
-    <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22%E8%B3%87%E7%94%A2%E9%85%8D%E7%BD%AE%E8%BF%BD%E8%B9%A4%22%2C%22short_name%22%3A%22%E8%B3%87%E7%94%A2%E8%BF%BD%E8%B9%A4%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f4f5f7%22%2C%22theme_color%22%3A%22%231890ff%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%253E%253Crect%20width%3D'100'%20height%3D'100'%20rx%3D'20'%20fill%3D'%25231890ff'%2F%253E%253Ctext%20x%3D'50'%20y%3D'65'%20font-size%3D'50'%20text-anchor%3D'middle'%20fill%3D'white'%253E%25F0%259F%2592%25B0%253C%2Ftext%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22192x192%20512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D">
     
     <style>
         :root {
@@ -23,11 +22,11 @@
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg); margin: 0; padding: 12px; color: #333; user-select: none; -webkit-user-select: none; }
         .container { background: var(--card-bg); border-radius: 16px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 16px; width: 100%; overflow: hidden; }
         h2 { margin-top: 0; font-size: 1.3rem; color: var(--text-main); display: flex; justify-content: space-between; align-items: center;}
-        .version-tag { font-size: 0.8rem; color: #fff; font-weight: bold; background: #1890ff; padding: 2px 8px; border-radius: 6px; }
+        .version-tag { font-size: 0.8rem; color: #fff; font-weight: bold; background: var(--success); padding: 2px 8px; border-radius: 6px; }
         
-        #system-alert { display: none; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.9rem; font-weight: bold; text-align: center; line-height: 1.4;}
-        .alert-error { background: #fff1f0; color: #f5222d; border: 1px solid #ffa39e; }
-        .alert-success { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+        #sys-msg { display: none; padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 0.9rem; font-weight: bold; text-align: center; }
+        .msg-err { background: #fff1f0; color: #f5222d; border: 1px solid #ffa39e; }
+        .msg-ok { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
 
         .asset-card { background: #fafafa; border: 1px solid #eaeaea; border-radius: 12px; padding: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; }
         .asset-row-1, .asset-row-2 { display: flex; gap: 8px; align-items: center; width: 100%; }
@@ -69,278 +68,320 @@
 <body>
 
 <div class="container">
-    <h2>💰 當前配置 <span class="version-tag">v6.0 完美錢袋版</span></h2>
-    <div id="system-alert"></div>
-    <div id="asset-list">
-        <div style="text-align:center; padding: 20px; color:#999;">介面載入中...</div>
-    </div>
+    <h2>💰 當前配置 <span class="version-tag">v7.0 重生版</span></h2>
+    <div id="sys-msg"></div>
     
-    <button type="button" class="btn btn-add" onclick="window.addRow()">+ 新增資產項目</button>
+    <!-- 列表容器 -->
+    <div id="asset-list"></div>
+    
+    <button type="button" id="btn-add" class="btn btn-add">+ 新增資產項目</button>
     <div class="summary" id="total-display">總資產：$0</div>
     
     <div class="charts-grid">
         <div class="chart-box">
             <h4 class="chart-title">📊 第一層 (大類)</h4>
-            <div class="chart-wrapper">
-                <canvas id="pieChartCat1"></canvas>
-                <div id="chart-loader-1" style="position:absolute;">圖表準備中...</div>
-            </div>
+            <div class="chart-wrapper"><canvas id="pieChartCat1"></canvas><div class="c-loader">圖表載入中...</div></div>
         </div>
         <div class="chart-box">
             <h4 class="chart-title">🎯 第二層 (明細)</h4>
-            <div class="chart-wrapper">
-                <canvas id="pieChartCat2"></canvas>
-                <div id="chart-loader-2" style="position:absolute;">圖表準備中...</div>
-            </div>
+            <div class="chart-wrapper"><canvas id="pieChartCat2"></canvas><div class="c-loader">圖表載入中...</div></div>
         </div>
     </div>
     
-    <button type="button" class="btn btn-save" onclick="window.saveRecord()" style="margin-top: 15px;">💾 儲存今日總額</button>
+    <button type="button" id="btn-save" class="btn btn-save" style="margin-top: 15px;">💾 儲存今日總額</button>
 </div>
 
 <div class="container">
     <h2>📈 資產成長趨勢</h2>
-    <div class="chart-wrapper">
-        <canvas id="lineChart"></canvas>
-        <div id="chart-loader-3" style="position:absolute;">圖表準備中...</div>
-    </div>
+    <div class="chart-wrapper"><canvas id="lineChart"></canvas><div class="c-loader">圖表載入中...</div></div>
 </div>
 
 <div class="container">
     <h2>📁 紀錄與備份</h2>
     <div class="action-row">
-        <button type="button" class="btn-half" onclick="window.exportData()">📤 匯出備份</button>
-        <button type="button" class="btn-half" onclick="document.getElementById('import-file').click()">📥 匯入紀錄</button>
-        <input type="file" id="import-file" accept=".json" onchange="window.importData(event)">
+        <button type="button" id="btn-export" class="btn-half">📤 匯出備份</button>
+        <button type="button" id="btn-import-trig" class="btn-half">📥 匯入紀錄</button>
+        <input type="file" id="import-file" accept=".json">
     </div>
     <div id="history-manager-list" class="history-list"></div>
-    <button type="button" class="btn btn-danger-outline" onclick="window.clearAllHistory()">🗑️ 清空紀錄</button>
+    <button type="button" id="btn-clear" class="btn btn-danger-outline">🗑️ 清空紀錄</button>
 </div>
 
-<!-- ==========================================
-     核心程式碼：完全獨立，不被外部套件綁架
-     ========================================== -->
 <script>
-    // --- 1. Service Worker 快取設定 ---
-    try {
-        const swCode = `
-            const CACHE_NAME = 'asset-tracker-v6-final';
-            self.addEventListener('install', e => self.skipWaiting());
-            self.addEventListener('activate', e => {
-                e.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))));
-                self.clients.claim();
-            });
-            self.addEventListener('fetch', e => {
-                e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
-            });
-        `;
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode], {type: 'application/javascript'})));
+document.addEventListener('DOMContentLoaded', () => {
+    
+    /* ==========================================
+       一、安全儲存裝甲 (SafeStorage)
+       即使三星瀏覽器封鎖 localStorage，系統也不會當機，
+       會自動轉為「記憶體暫存模式」。
+       ========================================== */
+    let useMemoryStorage = false;
+    let memoryStorage = {};
+    
+    const SafeStorage = {
+        get: (key) => {
+            if (useMemoryStorage) return memoryStorage[key] ? JSON.parse(memoryStorage[key]) : null;
+            try {
+                const val = localStorage.getItem(key);
+                return val ? JSON.parse(val) : null;
+            } catch (err) {
+                useMemoryStorage = true;
+                showMsg('⚠️ 瀏覽器封鎖了存檔權限，系統已切換為「暫存模式」。關閉網頁後資料將會消失。', true);
+                return null;
+            }
+        },
+        set: (key, val) => {
+            if (useMemoryStorage) { memoryStorage[key] = JSON.stringify(val); return; }
+            try {
+                localStorage.setItem(key, JSON.stringify(val));
+            } catch (err) {
+                useMemoryStorage = true;
+                memoryStorage[key] = JSON.stringify(val);
+                showMsg('⚠️ 儲存空間異常或被封鎖，目前資料僅暫存於畫面中。', true);
+            }
         }
-    } catch(e) {}
-
-    // --- 2. 狀態變數與工具 ---
-    window.chartCat1 = null;
-    window.chartCat2 = null;
-    window.lineChartInstance = null;
-    window.debounceTimer = null; 
-    window.currentAssets = [];
-    window.chartIsReady = false;
-
-    window.showAlert = function(msg, isError = false) {
-        const alertBox = document.getElementById('system-alert');
-        alertBox.innerHTML = msg;
-        alertBox.className = isError ? 'alert-error' : 'alert-success';
-        alertBox.style.display = 'block';
-        setTimeout(() => { alertBox.style.display = 'none'; }, 5000);
     };
 
-    window.getISODate = function() {
+    /* ==========================================
+       二、核心狀態與工具
+       ========================================== */
+    let chartCat1 = null, chartCat2 = null, lineChartInstance = null;
+    let debounceTimer = null;
+    let isChartReady = false;
+    let currentAssets = [];
+
+    function showMsg(text, isError = false) {
+        const m = document.getElementById('sys-msg');
+        m.innerText = text;
+        m.className = isError ? 'msg-err' : 'msg-ok';
+        m.style.display = 'block';
+        setTimeout(() => m.style.display = 'none', 5000);
+    }
+
+    function getISODate() {
         const d = new Date();
-        const offset = d.getTimezoneOffset() * 60000;
-        return new Date(d.getTime() - offset).toISOString().split('T')[0];
-    };
+        return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    }
 
-    window.evalMath = function(str) {
+    function evalMath(str) {
         if (!str) return { val: 0, err: false };
         const sanitized = str.replace(/[^0-9\+\-\.]/g, '');
         try {
             if (/[\+\-]{2,}/.test(sanitized) || /[\+\-]$/.test(sanitized)) throw new Error('Syntax');
-            const result = new Function('return ' + sanitized)();
-            if (isNaN(result) || !isFinite(result) || result < 0) throw new Error('Invalid');
-            return { val: Number(result), err: false };
+            const res = new Function('return ' + sanitized)();
+            if (isNaN(res) || !isFinite(res) || res < 0) throw new Error('Invalid');
+            return { val: Number(res), err: false };
         } catch (e) {
             return { val: 0, err: true };
         }
-    };
+    }
 
-    // --- 3. UI 渲染邏輯 ---
-    window.renderAssetList = function() {
-        const list = document.getElementById('asset-list');
-        list.innerHTML = '';
-        
-        window.currentAssets.forEach((asset, index) => {
+    /* ==========================================
+       三、UI 渲染與事件委派 (防彈設計)
+       捨棄 Inline onclick，改用 Event Delegation，
+       保證按鈕絕對能被點擊。
+       ========================================== */
+    const listEl = document.getElementById('asset-list');
+
+    function renderList() {
+        listEl.innerHTML = '';
+        currentAssets.forEach((asset, index) => {
             const card = document.createElement('div');
             card.className = 'asset-card';
             card.innerHTML = `
                 <div class="asset-row-1">
-                    <input type="text" class="input-cat cat1" value="${asset.cat1}" placeholder="大類 (如: ETF)" oninput="window.debouncedUpdateUI()">
-                    <input type="text" class="input-cat cat2" value="${asset.cat2}" placeholder="明細 (如: 0050)" oninput="window.debouncedUpdateUI()">
+                    <input type="text" class="input-cat cat1" value="${asset.cat1}" placeholder="大類 (如: ETF)" data-idx="${index}">
+                    <input type="text" class="input-cat cat2" value="${asset.cat2}" placeholder="明細 (如: 0050)" data-idx="${index}">
                 </div>
                 <div class="asset-row-2">
-                    <input type="text" class="input-val" value="${asset.valueStr}" placeholder="金額 (支援加減)" oninput="window.debouncedUpdateUI()">
+                    <input type="text" class="input-val" value="${asset.valueStr}" placeholder="金額 (支援加減)" data-idx="${index}">
                     <div class="pct-group">
                         <div class="cat1-lbl">大類 0%</div>
                         <div class="cat2-lbl">明細 0%</div>
                     </div>
-                    <button type="button" class="btn-del" onclick="window.removeRow(${index})">×</button>
+                    <button type="button" class="btn-del" data-idx="${index}">×</button>
                 </div>
             `;
-            list.appendChild(card);
+            listEl.appendChild(card);
         });
-        window.updateUI(); 
-    };
+        updateUI();
+    }
 
-    window.addRow = function() { window.currentAssets.push({ cat1: '', cat2: '', valueStr: '' }); window.renderAssetList(); };
-    window.removeRow = function(index) { window.currentAssets.splice(index, 1); window.renderAssetList(); };
+    // 事件委派：統一監聽列表內的輸入與刪除動作
+    listEl.addEventListener('input', (e) => {
+        if (e.target.tagName === 'INPUT') {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => updateUI(), 300);
+        }
+    });
 
-    window.saveCurrentState = function() {
+    listEl.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-del')) {
+            const idx = parseInt(e.target.getAttribute('data-idx'));
+            currentAssets.splice(idx, 1);
+            renderList();
+        }
+    });
+
+    function updateUI() {
+        // 同步狀態
         const cards = document.querySelectorAll('.asset-card');
-        if (cards.length === 0) return; 
-        window.currentAssets = Array.from(cards).map(card => ({
-            cat1: card.querySelector('.cat1').value,
-            cat2: card.querySelector('.cat2').value,
-            valueStr: card.querySelector('.input-val').value
-        }));
-        try { localStorage.setItem('assetCurrent_v2', JSON.stringify(window.currentAssets)); } catch(e){}
-    };
+        if (cards.length > 0 || currentAssets.length === 0) {
+            currentAssets = Array.from(cards).map(card => ({
+                cat1: card.querySelector('.cat1').value,
+                cat2: card.querySelector('.cat2').value,
+                valueStr: card.querySelector('.input-val').value
+            }));
+            SafeStorage.set('assetCurrent_v2', currentAssets);
+        }
 
-    window.debouncedUpdateUI = function() {
-        clearTimeout(window.debounceTimer);
-        window.debounceTimer = setTimeout(() => { window.updateUI(); }, 300);
-    };
-
-    window.updateUI = function() {
-        window.saveCurrentState();
         let total = 0, mapCat1 = {}, mapCat2 = {}, validRows = [];
 
-        document.querySelectorAll('.asset-card').forEach(card => {
-            const cat1 = card.querySelector('.cat1').value || '未分類';
-            const cat2 = card.querySelector('.cat2').value || '未命名';
-            const valInput = card.querySelector('.input-val');
-            const mathResult = window.evalMath(valInput.value);
-            validRows.push({ card, cat1, cat2, valInput, mathResult });
+        cards.forEach(card => {
+            const c1 = card.querySelector('.cat1').value || '未分類';
+            const c2 = card.querySelector('.cat2').value || '未命名';
+            const valInp = card.querySelector('.input-val');
+            const mathRes = evalMath(valInp.value);
+            validRows.push({ card, c1, c2, valInp, mathRes });
 
-            if (!mathResult.err && mathResult.val > 0) {
-                total += mathResult.val;
-                mapCat1[cat1] = (mapCat1[cat1] || 0) + mathResult.val;
-                mapCat2[cat2] = (mapCat2[cat2] || 0) + mathResult.val;
+            if (!mathRes.err && mathRes.val > 0) {
+                total += mathRes.val;
+                mapCat1[c1] = (mapCat1[c1] || 0) + mathRes.val;
+                mapCat2[c2] = (mapCat2[c2] || 0) + mathRes.val;
             }
         });
 
         validRows.forEach(row => {
-            const lbl1 = row.card.querySelector('.cat1-lbl');
-            const lbl2 = row.card.querySelector('.cat2-lbl');
-            if (row.mathResult.err) {
-                row.valInput.style.borderColor = '#ff4d4f';
-                lbl1.innerText = '錯誤'; lbl2.innerText = '錯誤';
+            const l1 = row.card.querySelector('.cat1-lbl');
+            const l2 = row.card.querySelector('.cat2-lbl');
+            if (row.mathRes.err) {
+                row.valInp.style.borderColor = '#ff4d4f';
+                l1.innerText = '錯誤'; l2.innerText = '錯誤';
             } else {
-                row.valInput.style.borderColor = '#ddd';
-                if (row.mathResult.val > 0 && total > 0) {
-                    lbl1.innerText = `大類 ${((mapCat1[row.cat1] / total) * 100).toFixed(1)}%`;
-                    lbl2.innerText = `明細 ${((mapCat2[row.cat2] / total) * 100).toFixed(1)}%`;
+                row.valInp.style.borderColor = '#ddd';
+                if (row.mathRes.val > 0 && total > 0) {
+                    l1.innerText = `大類 ${((mapCat1[row.c1] / total) * 100).toFixed(1)}%`;
+                    l2.innerText = `明細 ${((mapCat2[row.c2] / total) * 100).toFixed(1)}%`;
                 } else {
-                    lbl1.innerText = `大類 0%`; lbl2.innerText = `明細 0%`;
+                    l1.innerText = `大類 0%`; l2.innerText = `明細 0%`;
                 }
             }
         });
         
         document.getElementById('total-display').innerText = '總資產：' + total.toLocaleString('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 });
         
-        if (window.chartIsReady) {
-            const formatData = (map) => {
-                let labels = [], data = [];
-                for (let [key, val] of Object.entries(map)) {
-                    labels.push(`${key} (${total>0 ? ((val/total)*100).toFixed(1) : 0}%)`);
-                    data.push(val);
+        if (isChartReady) {
+            const fmt = (m) => {
+                let lbl = [], dat = [];
+                for (let [k, v] of Object.entries(m)) {
+                    lbl.push(`${k} (${total>0 ? ((v/total)*100).toFixed(1) : 0}%)`);
+                    dat.push(v);
                 }
-                return { labels, data };
+                return { labels: lbl, data: dat };
             };
-            window.drawPieCharts(formatData(mapCat1), formatData(mapCat2));
+            drawCharts(fmt(mapCat1), fmt(mapCat2));
         }
-    };
+    }
 
-    // --- 4. 圖表功能 (等待套件載入) ---
-    window.drawPieCharts = function(cat1Data, cat2Data) {
-        document.getElementById('chart-loader-1').style.display = 'none';
-        document.getElementById('chart-loader-2').style.display = 'none';
-        
+    /* ==========================================
+       四、圖表繪製與背景載入
+       ========================================== */
+    function drawCharts(d1, d2) {
+        document.querySelectorAll('.c-loader').forEach(el => el.style.display = 'none');
         const cp1 = ['#1890ff', '#faad14', '#52c41a', '#f5222d', '#722ed1', '#13c2c2', '#eb2f96'];
         const cp2 = ['#36cfc9', '#b37feb', '#ff7a45', '#fadb14', '#bae637', '#ff85c0', '#597ef7'];
-        const cfg = (dObj, colors) => ({
-            type: 'doughnut', data: { labels: dObj.labels, datasets: [{ data: dObj.data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
-            options: { responsive: true, maintainAspectRatio: false, cutout: '55%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: {size: 11} } }, tooltip: { callbacks: { label: (ctx) => ` $${ctx.raw.toLocaleString()}` } } } }
-        });
-        if (window.chartCat1) window.chartCat1.destroy();
-        window.chartCat1 = new Chart(document.getElementById('pieChartCat1').getContext('2d'), cfg(cat1Data, cp1));
-        if (window.chartCat2) window.chartCat2.destroy();
-        window.chartCat2 = new Chart(document.getElementById('pieChartCat2').getContext('2d'), cfg(cat2Data, cp2));
-    };
-
-    window.updateLineChart = function() {
-        if (!window.chartIsReady) return;
-        document.getElementById('chart-loader-3').style.display = 'none';
-
-        let history = JSON.parse(localStorage.getItem('assetTrend')) || [];
-        history.sort((a, b) => new Date(a.date) - new Date(b.date));
-        if (window.lineChartInstance) window.lineChartInstance.destroy();
-        window.lineChartInstance = new Chart(document.getElementById('lineChart').getContext('2d'), {
-            type: 'line', data: { labels: history.map(item => item.date.substring(5)), datasets: [{ label: '總資產', data: history.map(item => item.total), borderColor: '#52c41a', backgroundColor: 'rgba(82, 196, 26, 0.1)', fill: true, tension: 0.3 }] },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, ticks: { font: {size: 10} } }, x: { ticks: { font: {size: 10} } } }, plugins: { legend: { display: false } } }
-        });
-    };
-
-    // --- 5. 紀錄與備份管理 ---
-    window.saveRecord = function() {
-        let total = 0;
-        document.querySelectorAll('.asset-card').forEach(card => {
-            const res = window.evalMath(card.querySelector('.input-val').value);
-            if(!res.err) total += res.val;
-        });
-
-        if (total === 0) return window.showAlert("目前總資產為 0 或算式錯誤，無法儲存。", true);
-
-        const today = window.getISODate();
-        let history = JSON.parse(localStorage.getItem('assetTrend')) || [];
-        const existingIndex = history.findIndex(item => item.date === today);
-        if (existingIndex >= 0) history[existingIndex].total = total; else history.push({ date: today, total: total });
+        const cfg = (d, c) => ({ type: 'doughnut', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: c, borderWidth: 2, borderColor: '#fff' }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '55%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: {size: 11} } } } } });
         
-        localStorage.setItem('assetTrend', JSON.stringify(history));
-        window.showAlert("📊 今日紀錄已儲存！");
-        window.updateLineChart(); window.renderHistoryList();
-    };
+        if (chartCat1) chartCat1.destroy(); chartCat1 = new Chart(document.getElementById('pieChartCat1').getContext('2d'), cfg(d1, cp1));
+        if (chartCat2) chartCat2.destroy(); chartCat2 = new Chart(document.getElementById('pieChartCat2').getContext('2d'), cfg(d2, cp2));
+    }
 
-    window.renderHistoryList = function() {
-        const listContainer = document.getElementById('history-manager-list');
-        listContainer.innerHTML = '';
-        let history = JSON.parse(localStorage.getItem('assetTrend')) || [];
+    function drawLine() {
+        if (!isChartReady) return;
+        let hist = SafeStorage.get('assetTrend') || [];
+        hist.sort((a, b) => new Date(a.date) - new Date(b.date));
+        if (lineChartInstance) lineChartInstance.destroy();
+        lineChartInstance = new Chart(document.getElementById('lineChart').getContext('2d'), {
+            type: 'line', data: { labels: hist.map(i => i.date.substring(5)), datasets: [{ label: '總資產', data: hist.map(i => i.total), borderColor: '#52c41a', backgroundColor: 'rgba(82, 196, 26, 0.1)', fill: true, tension: 0.3 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+    }
+
+    // 非同步載入 Chart.js
+    const script = document.createElement('script');
+    script.src = "https://cdn.jsdelivr.net/npm/chart.js";
+    script.onload = () => { isChartReady = true; updateUI(); drawLine(); };
+    script.onerror = () => {
+        showMsg("⚠️ 您的瀏覽器封鎖了圖表繪製功能，但記帳與存檔功能仍可正常使用。", true);
+        document.querySelectorAll('.c-loader').forEach(el => el.innerText = "圖表遭阻擋");
+    };
+    document.body.appendChild(script);
+
+    /* ==========================================
+       五、紀錄管理與備份
+       ========================================== */
+    function renderHistory() {
+        const histContainer = document.getElementById('history-manager-list');
+        histContainer.innerHTML = '';
+        let hist = SafeStorage.get('assetTrend') || [];
         
-        if (history.length === 0) return listContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #999;">目前沒有歷史紀錄</div>';
+        if (hist.length === 0) { histContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #999;">目前沒有歷史紀錄</div>'; return; }
         
-        const historyWithIndex = history.map((item, idx) => ({ ...item, originalIndex: idx })).sort((a, b) => new Date(b.date) - new Date(a.date));
-        historyWithIndex.forEach((item) => {
+        hist.map((item, idx) => ({ ...item, oIdx: idx })).sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(item => {
             const div = document.createElement('div');
             div.className = 'history-item';
             div.innerHTML = `
                 <div class="history-date">${item.date}</div><div class="history-total">$${item.total.toLocaleString()}</div>
                 <div class="action-btns">
-                    <button type="button" class="btn-small btn-edit" onclick="window.editHistoryRecord(${item.originalIndex})">編輯</button>
-                    <button type="button" class="btn-small btn-delete" onclick="window.deleteHistoryRecord(${item.originalIndex})">刪除</button>
+                    <button type="button" class="btn-small btn-edit" data-idx="${item.oIdx}">編輯</button>
+                    <button type="button" class="btn-small btn-delete" data-idx="${item.oIdx}">刪除</button>
                 </div>`;
-            listContainer.appendChild(div);
+            histContainer.appendChild(div);
         });
-    };
+    }
 
-    window.editHistoryRecord = function(index) {
-        let h = JSON.parse(localStorage.getItem('assetTrend')) || [];
-        let newVal = prompt(`修改 ${h[index].date} 的總金額：`, h[ind
+    document.getElementById('history-manager-list').addEventListener('click', (e) => {
+        const idx = e.target.getAttribute('data-idx');
+        if (idx === null) return;
+        let h = SafeStorage.get('assetTrend') || [];
+        
+        if (e.target.classList.contains('btn-edit')) {
+            let newVal = prompt(`修改 ${h[idx].date} 的總金額：`, h[idx].total);
+            if (newVal && !isNaN(Number(newVal.replace(/,/g, '')))) {
+                h[idx].total = Number(newVal.replace(/,/g, ''));
+                SafeStorage.set('assetTrend', h); renderHistory(); drawLine();
+            }
+        } else if (e.target.classList.contains('btn-delete')) {
+            if (confirm('確定刪除？')) { h.splice(idx, 1); SafeStorage.set('assetTrend', h); renderHistory(); drawLine(); }
+        }
+    });
+
+    /* ==========================================
+       六、主按鈕綁定與啟動
+       ========================================== */
+    document.getElementById('btn-add').addEventListener('click', () => {
+        currentAssets.push({ cat1: '', cat2: '', valueStr: '' }); renderList();
+    });
+
+    document.getElementById('btn-save').addEventListener('click', () => {
+        let total = 0;
+        document.querySelectorAll('.asset-card').forEach(card => {
+            const res = evalMath(card.querySelector('.input-val').value);
+            if(!res.err) total += res.val;
+        });
+        if (total === 0) return showMsg("無法儲存：請先輸入正確的金額", true);
+
+        const today = getISODate();
+        let hist = SafeStorage.get('assetTrend') || [];
+        const existIdx = hist.findIndex(i => i.date === today);
+        if (existIdx >= 0) hist[existIdx].total = total; else hist.push({ date: today, total: total });
+        
+        SafeStorage.set('assetTrend', hist);
+        showMsg("✅ 今日紀錄已儲存！"); drawLine(); renderHistory();
+    });
+
+    document.getElementById('btn-export').addEventListener('click', () => {
+        const data = { currentAssets_v2: SafeStorage.get('assetCurrent_v2') || [], history: SafeStorage.get('assetTrend') || [] };
+        const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
+        const a = document.createElement('a'); a.href = url; a.download = `備份_${getISODate()}.json`; a.click(); URL.revokeObjectURL(url);
+  
